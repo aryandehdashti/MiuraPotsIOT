@@ -96,13 +96,17 @@ def receive_sensor_data():
         return "Sensor data received!", 200
     else:
         return "Method not allowed", 405
+def create_sensors_table():
+  conn = sqlite3.connect("sensors.db")
+  cursor = conn.cursor()
+  cursor.execute('''CREATE TABLE IF NOT EXISTS sensors (
+      inputID INTEGER NOT NULL,
+      name TEXT PRIMARY KEY NOT NULL
+  )''')
+  conn.commit()
+  conn.close()
+
+create_sensors_table()
 
 if __name__ == "__main__":
-    conn = sqlite3.connect("sensors.db")
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS sensors (
-    inputID INTEGER NOT NULL,
-    name TEXT PRIMARY KEY NOT NULL
-)''')
-    conn.close()
     app.run(host="0.0.0.0", port=5000)

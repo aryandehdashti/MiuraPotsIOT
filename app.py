@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 import asyncio
+import threading
 from bot import bot, send_message
 
 app = Flask(__name__)
@@ -10,7 +11,6 @@ DATABASE = "sensors.db"
 
 async def send_alert(potName):
     await send_message(potName)
-
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
@@ -86,27 +86,35 @@ def receive_sensor_data():
         received_data = request.get_json()
         active_sensors = get_sensors()
         for profile in active_sensors:
-            inputID, name = profile
+            inputID, name = profile["inputID"], profile["name"]
             for data in received_data:
-                sensor, value = data
-                if inputID in sensor and value:
-                    asyncio.run(send_alert(name))
+                if str(inputID) in data and received_data[data]:
+                    asyncio.run_coroutine_threadsafe(send_alert(name), loop)
                     break
 
         return "Sensor data received!", 200
     else:
         return "Method not allowed", 405
+
 def create_sensors_table():
-  conn = sqlite3.connect("sensors.db")
-  cursor = conn.cursor()
-  cursor.execute('''CREATE TABLE IF NOT EXISTS sensors (
-      inputID INTEGER NOT NULL,
-      name TEXT PRIMARY KEY NOT NULL
-  )''')
-  conn.commit()
-  conn.close()
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sensors (
+        inputID INTEGER NOT NULL,
+        name TEXT PRIMARY KEY NOT NULL
+    )''')
+    conn.commit()
+    conn.close()
+
+def start_event_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
 
 create_sensors_table()
+
+loop = asyncio.new_event_loop()
+t = threading.Thread(target=start_event_loop, args=(loop,))
+t.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
